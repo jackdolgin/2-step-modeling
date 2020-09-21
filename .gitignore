@@ -2,4 +2,6 @@ __pycache__
 *.xlsx
 *.csv
 *.pdf
+*.idea/
 .Rproj.user
+.DS_Store

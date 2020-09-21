@@ -88,7 +88,7 @@ def run_single_softmax_experiment(beta, alpha):
         ca.run()
     df = DataFrame(ca.log, columns=('context', 'action', 'reward', 'Q(c,23)',
                                     'Q(c,14)', 'Q(c,8)', 'Q(c,3)'))
-    # fn = 'softmax_experiment.csv'
+    # fn = os.path.join('..', '..', 'data', 'softmax_experiment.csv')
     # df.to_csv(fn, index=False)
     # print('Sequence written in', fn)
     # globals().update(locals())  #

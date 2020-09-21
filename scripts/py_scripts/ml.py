@@ -114,7 +114,7 @@ def card_cue_bandit_experiment(alpha=0.1, beta=0.5):
 
 def fit_behavioral_data():
     """Fit a model for all subjects. """
-    df = pd.read_pickle('data.pkl')
+    df = pd.read_pickle(os.path.join('..', '..', 'data', 'data.pkl'))
     subjects = df.index.get_level_values('subject').unique()
     data = np.empty((subjects.size, 10))
     cues = (0, 1)
@@ -136,7 +136,7 @@ def fit_behavioral_data():
 
 
 def fit_single_subject(subject=4):
-    df = pd.read_pickle('data.pkl')
+    df = pd.read_pickle(os.path.join('..', '..', 'data', 'data.pkl'))
     print('Fitting model for subject {}'.format(subject))
     df_s = df.loc[subject]
 
@@ -159,7 +159,7 @@ if __name__ == '__main__x':
     # np.set_printoptions(4)
     # fit_single_subject(14)
     model = fit_behavioral_data()
-    model.to_pickle('model.pkl')
+    model.to_pickle(os.path.join('..', '..', 'data', 'model.pkl'))
 
 if __name__ == '__main__':
     card_cue_bandit_experiment(alpha=0.1, beta=0.5)
