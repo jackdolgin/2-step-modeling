@@ -37,7 +37,7 @@ spacy_install <- function(conda = "auto",
       }
       
       # process the installation of spacy
-      process_spacy_installation_conda(conda, python_version,  envname, prompt)
+      process_spacy_installation_conda(conda, python_version,  envname, prompt = prompt)
     
     # windows installation
   } else {
@@ -72,7 +72,7 @@ process_spacy_installation_conda <- function(conda, python_version, prompt,
                                              envname) {
   
   conda_envs <- reticulate::conda_list(conda = conda)
-  if (prompt) {
+  if (TRUE) {
     ans <- utils::menu(c("No", "Yes"), title = "Proceed?")
     if (ans == 1) stop("condaenv setup is cancelled by user", call. = FALSE)
   }
@@ -95,7 +95,7 @@ process_spacy_installation_conda <- function(conda, python_version, prompt,
     scan(what="", sep="\n") %>%
     str_extract("[:alpha:]*")
   
-  reticulate::conda_install(envname, packages = py_packages, conda)
+  reticulate::conda_install(envname, packages = py_packages, conda = conda)
   
 }
 

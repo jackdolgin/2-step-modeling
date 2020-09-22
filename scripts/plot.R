@@ -4,5 +4,6 @@ source(here("scripts", "venv_setup", "conda_setup.R"))
 
 spacy_install()
 
-source_python("agent.py")
+setwd(here("scripts", "py_scripts"))
 
+source_python(here("scripts", "py_scripts", "agent.py"))

@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import os
 
 
 def plot_actions(cue=0):
@@ -45,7 +46,7 @@ def plot_simulation_run():
     mpl.rcParams['ytick.labelsize'] = 'large'
     mpl.rcParams['axes.labelsize'] = 'large'
 
-    df = pd.read_csv('softmax_experiment.csv')
+    df = pd.read_csv(os.path.join('..', '..', 'data', 'softmax_experiment.csv'))
     df_reward = df[df['context'] == 'reward'].reset_index()
     df_punishment = df[df['context'] == 'punishment'].reset_index()
 

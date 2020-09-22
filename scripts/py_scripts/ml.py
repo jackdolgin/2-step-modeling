@@ -4,6 +4,7 @@ from utils import softmax
 from scipy.optimize import minimize
 from matplotlib import cm
 import matplotlib.pyplot as plt
+import os
 
 import agent
 
@@ -154,10 +155,10 @@ def fit_single_subject(subject=4):
 
 
 if __name__ == '__main__x':
-    #card_cue_bandit_experiment()
-    #fit_behavioral_data()
-    # np.set_printoptions(4)
-    # fit_single_subject(14)
+    card_cue_bandit_experiment()
+    fit_behavioral_data()
+    np.set_printoptions(4)
+    fit_single_subject(14)
     model = fit_behavioral_data()
     model.to_pickle(os.path.join('..', '..', 'data', 'model.pkl'))
 
