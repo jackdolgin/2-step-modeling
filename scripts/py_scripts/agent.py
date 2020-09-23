@@ -4,6 +4,8 @@ from pandas import DataFrame
 import pandas as pd
 from utils import softmax
 import os
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 pd.options.display.float_format = '{:.2f}'.format
 
@@ -89,8 +91,11 @@ def run_single_softmax_experiment(beta, alpha):
         ca.run()
     df = DataFrame(ca.log, columns=('context', 'action', 'reward', 'Q(c,23)',
                                     'Q(c,14)', 'Q(c,8)', 'Q(c,3)'))
-    fn = os.path.join('..', '..', 'data', 'softmax_experiment.csv')
-    df.to_csv(fn, index=False)
+    table = pa.Table.from_pandas(df)
+    fn = os.path.join('..', '..', 'data', 'softmax_experiment.parquet')
+    pq.write_table(table, fn)
+    # df.to_csv(fn, index=False)
+    # this is where the arrow funcion goes i believe; can get rid of the csv that gets created a few lines above, too;
     print('Sequence written in', fn)
     globals().update(locals())  #
 
@@ -103,7 +108,7 @@ if __name__ == '__main__':
     alpha = 0.1
     print('Running experiment with alpha={} and beta={}'.format(alpha, beta))
     run_single_softmax_experiment(beta, alpha)
-    import vis
-    import matplotlib.pyplot as plt
-    plt.close('all')
-    vis.plot_simulation_run()
+    # import vis
+    # import matplotlib.pyplot as plt
+    # plt.close('all')
+    # vis.plot_simulation_run()
