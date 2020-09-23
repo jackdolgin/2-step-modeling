@@ -72,7 +72,7 @@ process_spacy_installation_conda <- function(conda, python_version, prompt,
                                              envname) {
   
   conda_envs <- reticulate::conda_list(conda = conda)
-  if (TRUE) {
+  if (prompt) {
     ans <- utils::menu(c("No", "Yes"), title = "Proceed?")
     if (ans == 1) stop("condaenv setup is cancelled by user", call. = FALSE)
   }
