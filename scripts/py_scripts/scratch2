@@ -1,0 +1,8 @@
+states = [(), 'left', 'middle', 'right']
+
+alist = [()]
+
+for i in range(len(states) - 1):
+    alist.append(states[i + 1])
+    sub_val = i + 2
+    print(states[:sub_val])
