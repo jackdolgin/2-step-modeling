@@ -22,3 +22,18 @@ donuts %>%
   ggplot(aes(x = trial, y = john)) +
   geom_line() +
   geom_rug(sides = 'top', aes(colour = lead_reward))
+
+
+
+
+df %>%
+  filter(step == 1) %>%
+  mutate(across(where(is.integer64), as.numeric)) %>%
+  select(ends_with("1)"))
+  group_by(across(c(updated_state, ends_with("1)")))) %>%
+  summarise(mean(imm_reward)) %>%
+  View
+  # `Q((((),), 'right'), left)`
+  
+  
+  

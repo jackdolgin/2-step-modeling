@@ -8,7 +8,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import random
 import itertools
-from copy import copy
+from copy import deepcopy
 
 pd.options.display.float_format = '{:.2f}'.format
 
@@ -23,9 +23,11 @@ class Sequence:
                                                   # self.rand_acts)}
                                                   choices)}
         self.rwd_prob_to_inflate = rwd_prob_to_inflate
+
         self.added_prob = added_prob
         self.n_rwds = n_rwds
-        for key, val in stages[(self.stage - 1) * a_mult].items():
+        stages_copy = deepcopy(stages)
+        for key, val in stages_copy[(self.stage - 1) * a_mult].items():
             setattr(self, key, val)
 
         self.unlikely_trans_prob = ((1 - self.likely_trans_prob)
@@ -52,6 +54,7 @@ class Agent:
         self.log = {}
         for i in cols_for_df:
             setattr(self, i, None)
+
 
     def run(self, trial):
         self.trial = trial
@@ -82,6 +85,7 @@ class Agent:
 
 
     def transition(self):
+
         potential_new_states = {}
 
         possible_action_pairs = self.get_state_val(self.past_states,
@@ -95,26 +99,12 @@ class Agent:
             else:
                 veneer = ((self.past_states[0],),) + self.past_states[1:]
 
-            # self.logger(((key, sequence.),), "n")
             for another_key, value in sequence.reward_probs.items():
                 self.logger((("P", key, another_key, value),), "n")
 
-
-
-                # jones = 'Q(' + str(my_item[0]) + ', ' + my_item[1] + ')'
-                # new_val = self.all_sequences[my_item[0]].Q[my_item[1]]
-                # # jones = 'Q(' + str(my_item[0]) + ', ' + my_item[1] + ')'
-
-
-                # if key == self.rwd_prob_to_inflate:
-                #     self.reward_probs[key] += self.added_prob
-                # else:
-                #     self.reward_probs[key] -= self.added_prob / (self.n_rwds - 1)
-
             for another_key, value in sequence.Q.items():
                 self.logger((("Q", key, another_key, value),), "n")
-            # for an_action in choices:
-            #     self.logger((("Q", key, an_action),), "n")
+
             if sequence.earlier_states == veneer and sequence.stage > 0:
                 possible_state = sequence.current_state[0]
 
@@ -132,17 +122,6 @@ class Agent:
         self.logger(("trial", "step", "outcome", "outcome_chance", "updated_state"), "y")
 
 
-
-        # log choice, past_states, outcome, past_states, past_picks, and probability of getting that outcome
-
-        # return outcome
-        # prob_total = 0
-        # cutoff = np.random.rand()
-        # for possible_state, prob in potential_new_states.items():
-        #     prob_total += prob
-        #     if prob_total >= cutoff:
-        #         return possible_state
-
     def q_update(self):
         reward_probs = self.get_state_val(self.past_states, 'reward_probs')
 
@@ -155,10 +134,6 @@ class Agent:
         self.delta = self.imm_reward + q_1 - q_0
 
         self.logger(("delta",), "y")
-        # log reward and all the q's here
-        # tuple(map(
-        #     lambda x: 'Q(c,' + str(x) + ')',
-        #     self.actions))
 
         for i in range(self.step + 1):
             the_Q = self.index_get_state_val(i, 'Q', 'n')
@@ -202,20 +177,17 @@ class Agent:
             elif x == "n":
                 jones = str(my_item[0]) + '(' + str(my_item[1]) + ", " + str(my_item[2]) + ')'
                 new_val = my_item[3]
-                # jones = 'Q(' + str(my_item[0]) + ', ' + my_item[1] + ')'
-                # new_val = self.all_sequences[my_item[0]].Q[my_item[1]]
 
             if jones not in self.log.keys():
-                self.log[jones] = [copy(new_val)]
+                self.log[jones] = [deepcopy(new_val)]
             else:
-                self.log[jones].append(copy(new_val))
+                self.log[jones].append(deepcopy(new_val))
 
 
     def create_sequences(self):
         for i in range(self.n_stages + 1):
             choice_combos = list(
                 itertools.product(choices, repeat=i))
-
             if i == 0:
                 rwds = [0]
             else:
@@ -244,7 +216,7 @@ class Agent:
                         combo = tuple([()] + list(combo))
                     if n_rwd_choice_ratio <= 1:
                         if k % n_rwds == 0:
-                            rwds_copy = copy(rwds)
+                            rwds_copy = deepcopy(rwds)
                             np.random.shuffle(rwds_copy)
                         rwd_prob_to_inflate = rwds_copy.pop()
                     else:
@@ -340,7 +312,6 @@ if __name__ == '__main__':
     # print('Running experiment with alpha={} and beta={}'.format(alpha, beta))
     trials = 1200
     run_single_softmax_experiment(stages, trials)
-
     # import vis
     # import matplotlib.pyplot as plt
     # plt.close('all')
