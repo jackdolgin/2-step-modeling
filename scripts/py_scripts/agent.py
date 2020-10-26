@@ -30,6 +30,11 @@ class Sequence:
         for key, val in stages_copy[(self.stage - 1) * a_mult].items():
             setattr(self, key, val)
 
+        if hasattr(self, "rwalk_mean"):
+            k = 1 / (self.rwalk_max + self.rwalk_min*(self.n_rwds - 1))
+            self.rwalk_min *= k # can probably condense this and the next line into one with some kind of for loop
+            self.rwalk_max *= k
+
         self.unlikely_trans_prob = ((1 - self.likely_trans_prob)
                                     / (n_choices - 1))
         self.Q = {i: np.random.uniform(0, 1e-4) for i in choices} # can think of this `Q` more as the Q of taking the action from a previous state that attempts to reach this further-along state
@@ -41,7 +46,24 @@ class Sequence:
                 self.reward_probs[key] -= self.added_prob / (self.n_rwds - 1)
 
     def random_walk(self):
-        pass
+        if hasattr(self, "rwalk_mean"):
+            moler = random.gauss(self.rwalk_mean, self.rwalk_sd)
+
+            key_list = list(self.reward_probs.keys())
+            akey = random.choice(key_list)
+
+            for key in key_list:
+                if key == akey:
+                    self.reward_probs[key] += moler
+                else:
+                    toler = moler / (self.n_rwds - 1) # i put this in the else statement rather than directly below moler because, in the off chance someone only supplies one possible reward and they still ask for a random walk, this else statement will never be reached and this line won't be some number divided by 0
+                    self.reward_probs[key] -= toler
+
+                while not self.rwalk_min <= self.reward_probs[key] <= self.rwalk_max:
+                    if self.reward_probs[key] > self.rwalk_max:
+                        self.reward_probs[key] -= 2 * (self.reward_probs[key] - self.rwalk_max)
+                    elif self.reward_probs[key] < self.rwalk_min:
+                        self.reward_probs[key] += 2 * (self.rwalk_min - self.reward_probs[key])
 
 class Agent:
     def __init__(self, steps, n_stages, n_choices, cols_for_df):
@@ -102,7 +124,7 @@ class Agent:
             for another_key, value in sequence.reward_probs.items():
                 self.logger((("P", key, another_key, value),), "n")
 
-            for another_key, value in sequence.Q.items():
+            for another_key, value in sequence.Q.items(): # i can probably combine these two lines and the two lines directly above into one for loop
                 self.logger((("Q", key, another_key, value),), "n")
 
             if sequence.earlier_states == veneer and sequence.stage > 0:
@@ -285,6 +307,7 @@ if __name__ == '__main__':
         {
             'alpha': .1,
             'beta': 5,
+            'w': .5,
             'likely_trans_prob': .7,
             'reward_probs': {0: 1},
             'min_added_r_prob': 0,
@@ -293,14 +316,20 @@ if __name__ == '__main__':
         {
             'alpha': .1,
             'beta': 5,
+            'w': .5,
             'likely_trans_prob': 1.0,
-            'reward_probs': {0: .5, 1: .5}, # always arrange these sub-lists in ascending order according its first item
+            'reward_probs': {0: .5, 1: .5},  # always arrange these sub-lists in ascending order according its first item
             'min_added_r_prob': .2,
             'max_added_r_prob': .25,
+            'rwalk_mean': 0,
+            'rwalk_sd': .025,
+            'rwalk_min': .25,
+            'rwalk_max': .75,
         },
         # {
         #     'alpha': .1,
         #     'beta': .5,
+        #     'w': .5,
         #     'likely_trans_prob': 1.0,
         #     'reward_probs': {0: .5, 1: .5},
         #     # always arrange these sub-lists in ascending order according its first item
