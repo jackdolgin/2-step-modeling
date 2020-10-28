@@ -1,5 +1,6 @@
 if (!require(pacman)) install.packages("pacman")
 pacman::p_load(arrow, here, reticulate, tidyverse, bit64, tsibble, slider)
+pacman::p_load_gh("cttobin/ggthemr")
 source(here("scripts", "venv_setup", "conda_setup.R"))
 
 spacy_install()
@@ -18,6 +19,9 @@ df_cleaned <- mutate(df,
                      across(john, as.numeric),
                      across(trial, ~ . + 1))
 
+ggthemr("dust", layout = "clean")
+
+# ggthemr_reset()
 
 df_cleaned %>%
   filter(step == 1) %>%
@@ -72,36 +76,51 @@ df_cleaned %>%
                                                                  "_",
                                                                  " "))) %>%
   rename_with(~str_replace_all(.x, "_", " "), starts_with("State_")) %>%
-  # filter(`State 1` == "right", `State 2` == "right", v_names == "Q value") %>%
   ggplot(aes(trial, v_values, colour = v_names, fill = imm_reward)) +
   scale_x_continuous(limits=c(0, 1200)) +
-  geom_tile(aes(y = .5, width=3),
+  geom_tile(aes(y = .4, width=3),
             stat='identity',
-            color = "azure1",
+            color = "#FBF7F3",
             show.legend = FALSE) +
-  scale_fill_gradient(low="#ed5b00", high="azure1") +
+  scale_fill_gradient(low="#09dbdb", high="#FBF7F3") +
   geom_line(key_glyph = "timeseries") +
   geom_line() +
-  theme_minimal() +
   theme(text = element_text(size=14, family = "Verdana", color = "#F1AE86")) +
   facet_grid(vars(`State 1`), vars(`State 2`), labeller = label_both) +
   labs(title = "Reward Probability Random Walk at Final States",
        caption = "Based on draws from a Gaussian\ndistibution with mean=0 and sd=.025", y="", x="Trial") +
-  theme(axis.text = element_text(colour = "#667682")) + 
-  theme(plot.title = element_text(size=22, family = "Verdana", face="bold")) + 
-  theme(strip.background = element_rect(color="#7A7676", fill="#FDF7C0", size=0.5, linetype="solid")) +
+  theme(plot.title = element_text(size=22, family = "Verdana", face="bold")) +
+  theme(strip.background = element_rect(color="#7A7676", fill="#FBF7F3", size=0.5, linetype="solid")) +
   theme(plot.margin=unit(c(0.5,1.5,0.5,0.5),"cm")) +
-  theme(plot.subtitle=element_text(size=16, family = "Verdana", face="italic")) + 
+  theme(plot.subtitle=element_text(size=16, family = "Verdana", face="italic"))# +
   theme(plot.background = element_rect(fill = "azure1"))
+  
+  
+  
+  
+  ggplot(aes(trial, v_values, colour = v_names, fill = imm_reward)) +
+  scale_x_continuous(limits=c(0, 1200)) +
+  geom_tile(aes(y = .35, width=3),
+            stat='identity',
+            # color = "#FBF7F3",
+            show.legend = FALSE) +
+  # scale_fill_gradient(low="#7A6752", high="#FBF7F3") +
+  geom_line(key_glyph = "timeseries") +
+  geom_line() +
+  # theme_minimal() +
+  theme(text = element_text(size=14, family = "Verdana")) +
+  facet_grid(vars(`State 1`), vars(`State 2`), labeller = label_both) +
+  labs(title = "Reward Probability Random Walk at Final States",
+       caption = "Based on draws from a Gaussian\ndistibution with mean=0 and sd=.025", y="", x="Trial") +
+  theme(strip.background = element_rect(color="#7A7676", fill="#FDF7C0", size=0.5, linetype="solid")) +
+  theme(plot.title = element_text(size=22, family = "Verdana", face="bold")) +
+  theme(plot.margin=unit(c(0.5,1.5,0.5,0.5),"cm")) +
+  theme(plot.subtitle=element_text(size=16, family = "Verdana", face="italic"))
 
 
 
 
 
-
-
-nycflights13::weather %>%
-  select(origin, time_hour, temp, humid, precip)
 
 
 
@@ -115,8 +134,7 @@ df_cleaned %>%
                # names_pattern = "((?<=').+?(?=', '))((?<=', ').+?(?='))",
                names_pattern = "((?<=').+)', '(.+?(?='))",
                values_to = "Reward_Probability") %>%
-  View
-ggplot(aes(trial, Reward_Probability, colour = State1, linetype = State2)) +
+  ggplot(aes(trial, Reward_Probability, colour = State1, linetype = State2)) +
   geom_line(key_glyph = "timeseries") +
   scale_color_manual(values=c("#F1AE86", "#667682")) +
   theme_minimal() +
@@ -132,20 +150,5 @@ ggplot(aes(trial, Reward_Probability, colour = State1, linetype = State2)) +
   theme(plot.subtitle=element_text(size=16, family = "Verdana", face="italic")) + 
   theme(plot.background = element_rect(fill = "azure1"))
 
-ggplot(aes(x = trial, y = john)) +
-  geom_line() +
-  geom_rug(sides = 'top', aes(colour = lead_reward))
-
-
-
-
-df %>%
-  filter(step == 1) %>%
-  mutate(across(where(is.integer64), as.numeric)) %>%
-  select(ends_with("1)"))
-group_by(across(c(updated_state, ends_with("1)")))) %>%
-  summarise(mean(imm_reward)) %>%
-  View
-# `Q((((),), 'right'), left)`
 
 
