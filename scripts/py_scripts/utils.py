@@ -18,8 +18,13 @@ def softmax(Q_dict, beta):
         Probabilities for each action
     """
 
+
     Qs = np.fromiter((i for i in Q_dict.values()), float)
+    # print(f"Qs = {Qs}")
     num = np.exp(Qs * beta)
+    # print(f"num = {num}")
+    # print(f"num / num.sum() = {num / num.sum()}")
+    # print("")
     return num / num.sum()
 
 

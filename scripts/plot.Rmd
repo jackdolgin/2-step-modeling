@@ -1,0 +1,347 @@
+---
+title: "R Notebook"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = FALSE)
+# pacman::p_load(arrow, here, reticulate, tidyverse, bit64, tsibble, slider, patchwork)
+# pacman::p_load_gh("cttobin/ggthemr")
+# source(here("scripts", "venv_setup", "conda_setup.R"))
+# 
+# 
+# setwd(here("scripts", "py_scripts"))
+```
+
+```{r import, echo=FALSE}
+# reticulate::source_python(here("scripts", "py_scripts", "agent.py"))
+
+df <- read_parquet(here("Data", "softmax_experiment.parquet"))
+
+df_cleaned <- mutate(df,
+                     # john = paste0(states_so_far, choice),
+                     across(where(is.character), as.factor),
+                     across(where(is.integer64), as.numeric),
+                     # across(john, as.numeric),
+                     across(c(trial, step), ~ . + 1))
+
+ggthemr("dust", layout = "clean")
+
+
+
+```
+
+
+```{r hist, echo=FALSE}
+
+df_cleaned %>%
+  # filter(trial < 200) %>%
+  group_by(trial) %>%
+  mutate(across(imm_reward, max)) %>%
+  # ungroup %>%
+  group_by(step) %>%
+  mutate(repetition = ifelse(choice == lead(choice),
+                             1, 0)) %>%
+  ungroup() %>%
+  filter(row_number() < nrow(df_cleaned) - 1,
+  # filter(row_number() < 199,
+         step == 1) %>%
+  mutate(across(outcome_freq, ~ifelse(round(., 1) == .7, "Common", "Rare")),
+         across(imm_reward, ~ifelse(. == 1, "Rewarded", "Unrewarded"))) %>%
+  group_by(outcome_freq, imm_reward) %>%
+  summarise(across(repetition, mean)) %>%
+  ggplot(aes(imm_reward, repetition, fill = outcome_freq)) +
+  geom_bar(stat='identity', position = "dodge") #+
+  # coord_cartesian(ylim = c(.3, .7))
+  
+
+```
+
+
+confirmed that the Q is updating like it should (at least when w = 0)
+```{r q_confirmed, echo=FALSE}
+
+df_condensed <- df_cleaned %>%
+  select(
+    trial,
+    states_so_far,
+    choice,
+    step,
+    outcome_freq,
+    imm_reward,
+    `Q(((),), left)`,
+    `Qtd(((),), left)`,
+    `Qmb(((),), left)`,
+    `Q(((),), right)`,
+    `Qtd(((),), right)`,
+    `Qmb(((),), right)`,
+    `Q((((),), 'left'), left)`,
+    `Qtd((((),), 'left'), left)`,
+    `Qmb((((),), 'left'), left)`,
+    `Q((((),), 'left'), right)`,
+    `Qtd((((),), 'left'), right)`,
+    `Qmb((((),), 'left'), right)`,
+    `Q((((),), 'right'), right)`,
+    `Qtd((((),), 'right'), right)`,
+    `Qmb((((),), 'right'), right)`,
+    `Q((((),), 'right'), left)`,
+    `Qtd((((),), 'right'), left)`,
+    `Qmb((((),), 'right'), left)`,
+    `P((((),), 'left', 'left'), 1)`,
+    `P((((),), 'left', 'right'), 1)`,
+    `P((((),), 'right', 'left'), 1)`,
+    `P((((),), 'right', 'right'), 1)`) %>%
+  mutate(Q_left = ifelse(states_so_far == "((),)",
+                         `Q(((),), left)`,
+                         ifelse(states_so_far == "((), 'left')",
+                                `Q((((),), 'left'), left)`,
+                                `Q((((),), 'right'), left)`)),
+         Q_right =ifelse(states_so_far == "((),)",
+                        `Q(((),), right)`,
+                        ifelse(states_so_far == "((), 'right')",
+                               `Q((((),), 'left'), right)`,
+                               `Q((((),), 'right'), right)`)),
+         Q_bigger = ifelse(Q_left > Q_right, 'left', 'right'),
+         Q_diff = abs(Q_right - Q_left),
+         Bigger_selected = ifelse(Q_bigger == choice, TRUE, FALSE),
+         subsequent_reward = lead(imm_reward)) %>%
+  group_by(step) %>%
+  mutate(repetition = ifelse(choice == lag(choice), 1, 0)) %>%
+  ungroup()
+
+```
+
+
+Ppl pick the higher value option more option, about 69% of the time in step 1 and 63% in step 2
+```{r higher_q, echo=FALSE}
+df_condensed %>%
+  group_by(step) %>%
+  summarise(mean(Bigger_selected))
+```
+
+
+Ppl get rewarded only 52-53%? So they're performing chance? Need to investigate more
+```{r r_rate, echo=FALSE}
+df_condensed %>%
+  filter(step == 2) %>%
+  summarise(mean(imm_reward))
+
+```
+
+Confirmed so far that at least the transitions are working as they should- 70% of time ppl are arriving at the more likely next location
+```{r good_trans, echo=FALSE}
+
+df_condensed %>%
+    filter(step == 1) %>%
+    count(outcome_freq)
+```
+
+
+Average reward probability for any given outcome is weirdly .49, not .5
+```{r avg_r_prob, echo=FALSE}
+
+df_cleaned %>%
+  filter(step == 2) %>%
+  select(ends_with("1)")) %>%
+  summarise_all(mean)
+```
+
+
+How well does reward probability translate to reward? spot on
+```{r prob_to_reward, echo=FALSE}
+first_qs <- colnames(df_cleaned) %>%
+  str_subset(., "Q\\(\\(\\(\\),\\), \\w*\\)")
+
+second_qs <- colnames(df_cleaned) %>%
+  str_subset(., "Q\\(*\\),\\), '\\w*'\\), \\w*\\)")
+
+rs <- select(df_cleaned, ends_with("1)")) %>% colnames
+
+toasty1 <- df_cleaned %>%
+  # filter(trial > 400, trial < 500) %>%
+  rowwise() %>%
+  mutate(
+         max_q_s_1 = all_of(first_qs)[which.max(c_across(all_of(first_qs)))],
+         max_q_s_2 = all_of(second_qs)[which.max(c_across(all_of(second_qs)))],
+         max_r = all_of(rs)[which.max(c_across(all_of(rs)))]
+  ) %>%
+  filter(step == 2) %>%
+  mutate(across(updated_state, ~ str_remove_all(., "[\\(]|[\\)]|,|'")),
+         across(max_q_s_1, ~ str_remove_all(., "Q|[\\(]|[\\)]|,|'| ")),
+         across(max_q_s_2, ~ str_remove_all(., "Q|[\\(]|[\\)]|,|'" )),
+         across(max_r, ~ str_remove_all(., "P|[\\(]|[\\)]|,|'|1")),
+         across(outcome_freq, ~ ifelse(. == .7, "Common", "Rare")),
+         imm_reward_discrete = ifelse(imm_reward == 1, "Rewarded", "Unrewarded"),
+         across(picks, as.character),
+         across(picks, as.factor)) %>%
+  separate(updated_state, c(NA, "State_1", "State_2"), sep=" ") %>%
+  separate(max_q_s_2, c(NA, "Q_Biggest_State_1", "Q_Biggest_State_2"), sep=" ") %>%
+  separate(max_r, c(NA, "R_Biggest_State_1", "R_Biggest_State_2"), sep=" ") %>%
+  pivot_longer(cols=ends_with("1)"),
+               names_to = c("Imagined_States_1", "Imagined_States_2"),
+               names_pattern = "((?<=').+)', '(.+?(?='))",
+               values_to = "Reward_Probability") %>%
+  mutate(Q_value = paste0("Q((((),), '",
+                          Imagined_States_1, "'), ",
+                          Imagined_States_2,
+                          ")")) %>%
+  mutate(
+    Q_value = pmap_dbl(
+      .l = .,
+      .f = function(...){
+        row <- c(...)
+        row %>%
+          pluck("Q_value") %>%
+          pluck(row, .) %>%
+          as.double
+      }
+    ),
+    Reward_dots = ifelse(State_1 == Imagined_States_1 & State_2 == Imagined_States_2,
+                    Reward_Probability, 0),
+    Q_dots = ifelse(State_1 == Imagined_States_1 & State_2 == Imagined_States_2,
+                    Q_value, 0))
+
+
+toasty1 %>%
+  filter(Reward_dots > 0) %>%
+  mutate(across(Reward_dots, ~round(., 2))) %>%
+  group_by(Reward_dots) %>%
+  summarise(y_val = mean(imm_reward)) %>%
+  ggplot(aes(Reward_dots, y_val)) +
+  geom_point()
+```
+
+We established above that the average reward per trial is right around 50%; presumably, then, half the trials have an associated reward_prob less than .5? it's a little more- .54
+```{r avg_r_prob_selected, echo=FALSE}
+toasty1 %>%
+  filter(Reward_dots > 0) %>%
+  summarise(mean(Reward_Probability))
+```
+
+They're only arriving at the state-action combo with the highest q value 43% of the time
+```{r q_max_selected, echo=FALSE}
+toasty1 %>%
+  filter(Q_dots > 0) %>%
+  group_by(State_1 == Q_Biggest_State_1 & State_2 == Q_Biggest_State_2) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  mutate(n = n / sum(n))
+```
+
+```{r q_stage_1, echo=FALSE}
+
+custom_graphing <- list(
+  geom_line(key_glyph = "timeseries"),
+  scale_x_continuous(limits=c(0, 500)),
+  theme_minimal(),
+  theme(text = element_text(size=14, family = "Verdana", color = "#F1AE86")),
+  theme(plot.title = element_text(size=22, family = "Verdana", face="bold")), 
+  theme(strip.background = element_rect(color="#7A7676", fill="#FDF7C0", size=0.5, linetype="solid")),
+  theme(plot.margin=unit(c(0.5,1.5,0.5,0.5),"cm")),
+  theme(axis.text = element_text(colour = "#667682")),
+  theme(plot.subtitle=element_text(size=16, family = "Verdana", face="italic")),
+  theme(plot.background = element_rect(fill = "azure1"))
+)
+
+df_condensed %>%
+  filter(step == 1) %>%
+  pivot_longer(cols=c(`Q(((),), left)`,
+                      `Q(((),), right)`),
+               values_to = "Q_Val") %>%
+  ggplot(aes(trial, Q_Val, colour = name, fill = subsequent_reward)) +
+  geom_tile(aes(y = .4, width=.1),
+            stat='identity',
+            color = "azure1",
+            show.legend = FALSE) +
+  scale_fill_gradient(low="#09dbdb", high="azure1") +
+  scale_color_manual(values=c("#F1AE86", "#667682")) +
+  custom_graphing +
+  scale_x_continuous(limits=c(1900, 2000)) +
+  labs(title = "Q Value and No Rewards during Stage 1") +
+  guides(col = guide_legend(order = 1, title="Transition 1"))
+
+```
+
+```{r r_and_q, echo=FALSE}
+
+
+    # max_q_2_selected = case_when(Q_dots == 0 ~ NA, round(Q_value, 6) == round(max_q_s_2, 6) ~ TRUE, TRUE ~ FALSE))
+
+ggthemr("grape", layout = "clean")
+
+
+some_graphing_additions = list(
+  theme_minimal(),
+  theme(text = element_text(size=14, family = "Verdana", color = "#F1AE86")),
+  theme(plot.title = element_text(size=22, family = "Verdana", face="bold")),
+  theme(strip.background = element_rect(color="#7A7676", fill="#FDF7C0", size=0.5, linetype="solid")),
+  theme(plot.margin=unit(c(0.5,1.5,0.5,0.5),"cm")),
+  theme(axis.text = element_text(colour = "#667682")),
+  theme(plot.subtitle=element_text(size=16, family = "Verdana", face="italic")),
+  scale_fill_manual(values=c("Unrewarded"="red","Rewarded" = "green")),
+  scale_x_continuous(limits=c(2800, 2900))
+)
+
+reward_plot <- toasty1 %>%
+  ggplot(aes(trial, Reward_Probability)) +
+  geom_line(key_glyph = "timeseries", aes(colour = Imagined_States_1, linetype = Imagined_States_2)) +
+  some_graphing_additions +
+  scale_y_continuous(limits=c(.25, .75)) +
+  geom_point(aes(trial, Reward_dots, fill = imm_reward_discrete, colour = picks), size=1, shape=21, stroke=1) +
+  labs(title = "Reward Probability Random Walk")
+
+
+q_plot <- toasty1 %>%
+  ggplot(aes(trial, Q_value)) +
+  geom_line(key_glyph = "timeseries", aes(colour = Imagined_States_1, linetype = Imagined_States_2)) +
+  some_graphing_additions +
+  scale_y_continuous(limits=c(.001, 1)) +
+  geom_point(aes(trial, Q_dots, fill = imm_reward_discrete, colour = picks), size=1, shape=21, stroke=1) +
+  labs(title = "Second-Stage Q Values")
+
+reward_plot + q_plot + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+
+```
+
+```{r r_and_q_max, echo=FALSE}
+
+
+toasty1 %>%
+  mutate(high_r_2_pt_1 = ifelse(picks == R_Biggest_State_1, TRUE, FALSE),
+         high_r_2_pt_2 = case_when(State_1 != R_Biggest_State_1 ~ "Other",
+                                   State_2 != R_Biggest_State_2 ~ "Close",
+                                   TRUE ~ "Biggest")) %>%
+  # high_r_1 = ifelse(State_1 = R_Biggest_State_1, )) %>%
+  count(high_r_2_pt_1, high_r_2_pt_2) %>%
+  ggplot(aes(y = n, axis1 = high_r_2_pt_1, axis2 = high_r_2_pt_2)) +
+  geom_alluvium(aes(fill=high_r_2_pt_1)) +
+  geom_stratum(width = 1/12, fill="black", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  # scale_x_discrete(limits = c("Gender", "Dept"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1")
+
+
+toasty1 %>%
+  mutate(high_q_2_pt_1 = ifelse(picks == Q_Biggest_State_1, "Aha", "nah"),
+         high_q_2_pt_2 = case_when(State_1 != Q_Biggest_State_1 ~ "Other",
+                                   State_2 != Q_Biggest_State_2 ~ "Close",
+                                   TRUE ~ "Biggest"),
+           high_q_1 = ifelse(State_1 == max_q_s_1, TRUE, FALSE)) %>%
+  count(high_q_2_pt_1, high_q_2_pt_2, high_q_1) %>%
+  ggplot(aes(y = n, axis1 = high_q_2_pt_1, axis2 = high_q_2_pt_2)) +
+  # stat_stratum(reverse = FALSE) +
+  geom_alluvium(aes(fill=high_q_1)) +
+  geom_stratum(width = 1/12, fill="black", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  # scale_x_discrete(limits = c("Gender", "Dept"), expand = c(.05, .05)) +
+  
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  theme_minimal()
+
+
+```
