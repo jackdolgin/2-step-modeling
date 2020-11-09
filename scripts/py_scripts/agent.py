@@ -55,11 +55,6 @@ class Sequence:
         self.Qmb = {}
         self.Q = {}
         self.q_qmb_update(14)
-        # if self.stage == 0:
-        #     print(self.Q)
-
-
-
 
     # Disappointingly, I couldn't figure out how to account for a setup with rewards at multiple stages :( not sure theoretically how to set it up, cause it would require knowing how much of q at stage n is derived from each of the q's at stage n + 1
 
@@ -86,18 +81,6 @@ class Sequence:
 
             self.Q[a_choice] = combined_Q
 
-
-
-
-
-
-        # self.Qtd = {} # can think of this `Qtd` more as the Qtd of taking the action from a previous state that attempts to reach this further-along state
-        # self.Qm = {}
-        # for i in choices:
-        #     self.Qtd[i] = np.random.uniform(0, 1e-4)
-        #     for j in choices:
-        #         if self.action_pairs[i] == j:
-        #             avar = [i, j, ]
 
 
     def expected_value(self, x):
@@ -143,9 +126,6 @@ class Agent:
         self.trial = trial
         self.states_so_far = ((),)
         self.picks = []
-        # if self.trial == 2:
-        #     print(self.log['Q(((),), left)'])
-            # print("self.log['Q(((),), left)'][-1]) = " + str(self.log['Q(((),), left)'][-1]))
         self.choose_choice()
         for step in range(self.n_stages):
             self.step = step
@@ -154,7 +134,6 @@ class Agent:
 
             if self.step < self.n_stages - 1:
                 self.choose_choice()
-            # self.log_rprob_and_qs()
             self.qtd_update()
             self.logger(("imm_reward",), "y")
 
@@ -167,9 +146,6 @@ class Agent:
             for i in (("reward_probs", "P"), ("Qtd", "Qtd"), ("Qmb", "Qmb"), ("Q", "Q")):
                 for another_key, value in getattr(sequence, i[0]).items():
                     self.logger(((i[1], key, another_key, value),), "n")
-                    # if key == ((),) and self.trial < 22 and i == ("Q", "Q"):
-                    #     print("inside log_rprob_and_qs")
-                    #     print(str(another_key) + ": " + str(value))
 
     def choose_choice(self):
 
@@ -184,8 +160,6 @@ class Agent:
 
         if len(self.picks) < self.n_stages:
             self.logger(("states_so_far", "picks", "choice"), "y")
-        # else:
-        #     print("joooooooooooooooooooooooooooooooooooooooooo")
 
         self.picks.append(self.choice)
 
@@ -213,8 +187,7 @@ class Agent:
 
         self.imm_reward = np.random.choice(list(reward_probs.keys()),
                                            p=list(reward_probs.values()))
-        # print("chapelleeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
-        # print(self.picks)
+
         if self.step < self.n_stages - 1:
             q_1 = self.index_get_state_val(-1, 'Qtd', 'y')
         else:
@@ -230,11 +203,7 @@ class Agent:
             the_Q = self.index_get_state_val(i, 'Qtd', 'n')
             alpha = self.index_get_state_val(i, 'alpha', 'y')
             change = self.delta * alpha * (lmbda ** i)
-            # if 16 < self.trial < 19:
-            #     print(f"self.trial = {self.trial}")
-            #     print(f"the_Q = {the_Q}")
-            #     print(f"alpha = {alpha}")
-            #     print(f"change = {change}")
+
             the_Q[0][the_Q[1]] += change  # this is where the actual update occurs
 
         [sequence.q_qmb_update(self.trial) for sequence in self.all_sequences.values()]
@@ -247,18 +216,9 @@ class Agent:
         state_attr = self.get_state_val(given_state, y)
         # print("tony")
         if y in ['alpha']:
-            # if 16 < self.trial < 19:
-            #     print(f"sub_val = {sub_val}")
-            #     print(f"given_state = {given_state}")
-            #     print(f"state_attr = {state_attr}")
-            #     print()
             return state_attr
         elif y == 'Qtd':
-            # print("barter")
-            # print(self.picks)
-            # print(sub_val)
             that_action = self.picks[sub_val - 1]              # likewise, at any given step, the length of self.picks equals step + 2 (e.g. length of 2 at step 0, at least by the time qtd_update gets called); note, however, we use -1 because we're indexing a specific number, not all values prior to an index (i.e. no use of colon in this line's index)
-            # print("")
             if z == "y":
                 q_to_return = state_attr[that_action]
             elif z == "n":
@@ -442,7 +402,6 @@ if __name__ == '__main__':
         },
     )
 
-    # print('Running experiment with alpha={} and beta={}'.format(alpha, beta))
     trials = 2000
 
     run_single_softmax_experiment(trials)
