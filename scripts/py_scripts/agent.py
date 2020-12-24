@@ -54,11 +54,11 @@ class Sequence:
         self.Qtd = {i: np.random.uniform(0, 1e-4) for i in choices} # can think of this `Qtd` more as the Qtd of taking the action from a previous state that attempts to reach this (this object's state + the next state) further-along state
         self.Qmb = {}
         self.Q = {}
-        self.q_qmb_update(14)
+        self.q_qmb_update()
 
     # Disappointingly, I couldn't figure out how to account for a setup with rewards at multiple stages :( not sure theoretically how to set it up, cause it would require knowing how much of q at stage n is derived from each of the q's at stage n + 1
 
-    def q_qmb_update(self, x):
+    def q_qmb_update(self):
 
         for a_choice in choices:
 
@@ -81,13 +81,6 @@ class Sequence:
 
             self.Q[a_choice] = combined_Q
 
-
-
-    def expected_value(self, x):
-        asum = 0
-        for some_choice in choices:
-            asum += self.potential_new_states[x][some_choice] * self.Qtd[some_choice]
-        return asum
 
     def random_walk(self):
         if hasattr(self, "rwalk_mean"):
@@ -206,7 +199,7 @@ class Agent:
 
             the_Q[0][the_Q[1]] += change  # this is where the actual update occurs
 
-        [sequence.q_qmb_update(self.trial) for sequence in self.all_sequences.values()]
+        [sequence.q_qmb_update() for sequence in self.all_sequences.values()]
 
 
 
